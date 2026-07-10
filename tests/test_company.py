@@ -10,6 +10,7 @@ from company import (
     OllamaMemoProvider,
     ROLES,
     classify_objective,
+    compare_provider_runs,
     create_daily_review,
     extract_json_object,
     render_status_report,
@@ -76,6 +77,31 @@ class CompanyEngineTests(unittest.TestCase):
             )
             self.assertIn("Provider: deterministic", provider_contract)
             self.assertIn("Forbidden Side Effects", provider_contract)
+
+    def test_compare_provider_runs_writes_report_and_child_runs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            comparison = compare_provider_runs(
+                "Build a local file-backed multi-agent company operating loop",
+                runs_dir=Path(tmp),
+                run_name="provider-check",
+                providers=["deterministic", "deterministic"],
+                use_memory=False,
+            )
+
+            self.assertTrue(comparison.comparison_dir.exists())
+            self.assertTrue(comparison.report_path.exists())
+            self.assertEqual(len(comparison.runs), 2)
+            self.assertIsNone(comparison.memory_db)
+            self.assertTrue(all((run.run_dir / "board_packet.md").exists() for run in comparison.runs))
+            self.assertTrue(all((run.run_dir / "tasks.json").exists() for run in comparison.runs))
+
+            report = comparison.report_path.read_text(encoding="utf-8")
+            self.assertIn("Provider Comparison Report", report)
+            self.assertIn("## Runs", report)
+            self.assertIn("## P0 Task Comparison", report)
+            self.assertIn("deterministic vs deterministic", report)
+            self.assertIn("provider-check-01-deterministic", report)
+            self.assertIn("provider-check-02-deterministic", report)
 
     def test_extract_json_object_accepts_wrapped_json(self):
         payload = extract_json_object("Here is JSON:\n{\"memos\": []}\nDone")

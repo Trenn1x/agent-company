@@ -82,6 +82,17 @@ class CompanyRun:
     memory_db: Path | None = None
 
 
+@dataclass
+class CompanyComparison:
+    objective: str
+    context: str
+    comparison_dir: Path
+    runs: list[CompanyRun]
+    report_path: Path
+    report: str
+    memory_db: Path | None = None
+
+
 @dataclass(frozen=True)
 class ProviderContract:
     provider_id: str
@@ -2084,6 +2095,220 @@ def create_daily_review(
     return path
 
 
+def task_priority_counts(tasks: list[dict[str, str]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in normalize_tasks(tasks):
+        priority = item.get("priority", "P1").upper()
+        counts[priority] = counts.get(priority, 0) + 1
+    return counts
+
+
+def fallback_roles(memos: list[AgentMemo]) -> list[str]:
+    return [
+        memo.role.title
+        for memo in memos
+        if "fallback used" in memo.summary.lower()
+        or "deterministic fallback" in memo.summary.lower()
+    ]
+
+
+def normalized_task_fingerprint(task_text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", task_text.lower()).strip()
+
+
+def comparison_run_label(run: CompanyRun, index: int) -> str:
+    return f"{index}. {run.provider}"
+
+
+def render_comparison_report(
+    objective: str,
+    context: str,
+    runs: list[CompanyRun],
+    comparison_dir: Path,
+    memory_db: Path | None = None,
+) -> str:
+    created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    lines = [
+        "# Provider Comparison Report",
+        "",
+        f"- Created: {created_at}",
+        f"- Objective: {objective}",
+        f"- Comparison folder: {comparison_dir.resolve()}",
+    ]
+    if context.strip():
+        lines.append(f"- Context: {context.strip()}")
+    if memory_db:
+        lines.append(f"- Memory database: {memory_db.resolve()}")
+    lines.extend(["", "## Runs", ""])
+    lines.append("| # | Provider | Run Folder | Tasks | P0 | P1 | Other | Fallback Roles |")
+    lines.append("|---|---|---|---:|---:|---:|---:|---|")
+
+    for index, run in enumerate(runs, start=1):
+        priority_counts = task_priority_counts(run.tasks)
+        other_priorities = sum(
+            count for priority, count in priority_counts.items() if priority not in {"P0", "P1"}
+        )
+        fallbacks = fallback_roles(run.memos)
+        fallback_text = ", ".join(fallbacks) if fallbacks else "None"
+        lines.append(
+            "| {idx} | {provider} | `{folder}` | {tasks} | {p0} | {p1} | {other} | {fallbacks} |".format(
+                idx=index,
+                provider=run.provider,
+                folder=run.run_dir.name,
+                tasks=len(run.tasks),
+                p0=priority_counts.get("P0", 0),
+                p1=priority_counts.get("P1", 0),
+                other=other_priorities,
+                fallbacks=fallback_text,
+            )
+        )
+
+    lines.extend(["", "## P0 Task Comparison", ""])
+    for index, run in enumerate(runs, start=1):
+        p0_tasks = [item for item in normalize_tasks(run.tasks) if item["priority"] == "P0"]
+        lines.extend([f"### {comparison_run_label(run, index)}", ""])
+        if p0_tasks:
+            lines.extend(f"- {format_task_line(item)}" for item in p0_tasks)
+        else:
+            lines.append("- No P0 tasks.")
+        lines.append("")
+
+    lines.extend(["## Task Overlap", ""])
+    if len(runs) >= 2:
+        baseline = runs[0]
+        baseline_tasks = {
+            normalized_task_fingerprint(item.get("task", "")) for item in normalize_tasks(baseline.tasks)
+        }
+        for index, run in enumerate(runs[1:], start=2):
+            current_tasks = {
+                normalized_task_fingerprint(item.get("task", "")) for item in normalize_tasks(run.tasks)
+            }
+            shared = len(baseline_tasks & current_tasks)
+            lines.append(
+                f"- {baseline.provider} vs {run.provider}: {shared} shared task(s), "
+                f"{len(baseline_tasks - current_tasks)} baseline-only, "
+                f"{len(current_tasks - baseline_tasks)} comparison-only."
+            )
+    else:
+        lines.append("- At least two provider runs are needed for overlap analysis.")
+
+    lines.extend(["", "## Recommendation", ""])
+    all_fallbacks = {
+        run.provider: fallback_roles(run.memos)
+        for run in runs
+        if fallback_roles(run.memos)
+    }
+    if all_fallbacks:
+        lines.append(
+            "Use the deterministic run as the baseline until provider fallback roles are reviewed. "
+            "A provider-backed run is still useful, but fallback roles show where the model response "
+            "did not satisfy the engine contract."
+        )
+    else:
+        lines.append(
+            "Review the differing P0 tasks and choose the provider whose tasks create the clearest "
+            "next human decision. Keep deterministic output as the audit baseline."
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Human Review Checklist",
+            "",
+            "- Open each `board_packet.md` and compare the success metric.",
+            "- Compare P0 tasks before adding new scope.",
+            "- Treat any provider fallback as a prompt or model-contract issue, not as a failed run.",
+            "- Do not let provider output trigger external side effects without explicit approval.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def prepare_comparison_dir(objective: str, run_name: str | None, runs_dir: Path) -> Path:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    name = slugify(run_name or objective)
+    base = runs_dir / f"{stamp}-{name}-comparison"
+    comparison_dir = base
+    suffix = 1
+    while comparison_dir.exists():
+        suffix += 1
+        comparison_dir = runs_dir / f"{stamp}-{name}-comparison-{suffix}"
+    comparison_dir.mkdir(parents=True)
+    return comparison_dir
+
+
+def compare_provider_runs(
+    objective: str,
+    context: str = "",
+    run_name: str | None = None,
+    runs_dir: Path | str = "runs",
+    days: int = 7,
+    providers: list[str] | tuple[str, ...] | None = None,
+    provider_model: str | None = None,
+    ollama_url: str | None = None,
+    memory_db: Path | str | None = None,
+    use_memory: bool = True,
+) -> CompanyComparison:
+    provider_ids = list(providers or ["deterministic", "ollama"])
+    if len(provider_ids) < 2:
+        raise ValueError("Compare requires at least two providers.")
+    for provider_id in provider_ids:
+        if provider_id not in PROVIDERS:
+            raise ValueError(f"Unknown provider: {provider_id}")
+
+    objective = objective.strip()
+    if not objective:
+        raise ValueError("Objective is required.")
+
+    root_dir = Path(runs_dir).expanduser()
+    comparison_dir = prepare_comparison_dir(objective, run_name, root_dir)
+    resolved_memory_db = None
+    if use_memory:
+        resolved_memory_db = Path(memory_db).expanduser() if memory_db else default_memory_db(root_dir)
+
+    comparison_runs: list[CompanyRun] = []
+    base_name = slugify(run_name or objective)
+    for index, provider_id in enumerate(provider_ids, start=1):
+        engine = CompanyEngine(
+            provider=provider_id,
+            provider_model=provider_model,
+            ollama_url=ollama_url,
+        )
+        provider_run_name = f"{base_name}-{index:02d}-{slugify(provider_id)}"
+        comparison_runs.append(
+            engine.run(
+                objective=objective,
+                context=context,
+                run_name=provider_run_name,
+                runs_dir=comparison_dir,
+                days=days,
+                memory_db=resolved_memory_db,
+                use_memory=use_memory,
+            )
+        )
+
+    report = render_comparison_report(
+        objective,
+        context,
+        comparison_runs,
+        comparison_dir,
+        memory_db=resolved_memory_db,
+    )
+    report_path = comparison_dir / "comparison_report.md"
+    report_path.write_text(report, encoding="utf-8")
+
+    return CompanyComparison(
+        objective=objective,
+        context=context,
+        comparison_dir=comparison_dir,
+        runs=comparison_runs,
+        report_path=report_path,
+        report=report,
+        memory_db=resolved_memory_db,
+    )
+
+
 def default_memory_db(runs_dir: Path) -> Path:
     return runs_dir / "company_memory.sqlite3"
 
@@ -2455,6 +2680,39 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--memory-db", help="Optional SQLite memory database path.")
     run_parser.add_argument("--no-memory", action="store_true", help="Do not sync this run to SQLite memory.")
 
+    compare_parser = subparsers.add_parser(
+        "compare",
+        help="Run multiple providers on one objective and write a comparison report.",
+    )
+    compare_parser.add_argument("objective", nargs="+", help="Objective to process.")
+    compare_parser.add_argument("--context-file", help="Optional Markdown/text file with context.")
+    compare_parser.add_argument("--name", help="Optional comparison name slug.")
+    compare_parser.add_argument("--runs-dir", default="runs", help="Directory for generated run folders.")
+    compare_parser.add_argument("--days", type=int, default=7, help="Sprint length in days.")
+    compare_parser.add_argument(
+        "--providers",
+        nargs="+",
+        default=["deterministic", "ollama"],
+        choices=sorted(PROVIDERS),
+        help="Provider implementations to compare in order.",
+    )
+    compare_parser.add_argument(
+        "--model",
+        default=OllamaMemoProvider.default_model,
+        help="Model name for provider implementations that use a model.",
+    )
+    compare_parser.add_argument(
+        "--ollama-url",
+        default=OllamaMemoProvider.default_base_url,
+        help="Local Ollama base URL for `--provider ollama`.",
+    )
+    compare_parser.add_argument("--memory-db", help="Optional SQLite memory database path.")
+    compare_parser.add_argument(
+        "--no-memory",
+        action="store_true",
+        help="Do not sync comparison runs to SQLite memory.",
+    )
+
     status_parser = subparsers.add_parser("status", help="Print task status for an existing run.")
     status_parser.add_argument("run_dir", help="Path to a generated run folder.")
     status_parser.add_argument("--memory-db", help="Optional SQLite memory database path.")
@@ -2520,6 +2778,32 @@ def main(argv: list[str] | None = None) -> int:
         if args.sync_runs_dir:
             db_path = sync_runs_dir_to_memory(Path(args.sync_runs_dir), db_path)
         print(render_memory_summary(db_path, args.limit))
+        return 0
+
+    if args.command == "compare":
+        objective = " ".join(args.objective)
+        context = load_context(args.context_file)
+        comparison = compare_provider_runs(
+            objective=objective,
+            context=context,
+            run_name=args.name,
+            runs_dir=Path(args.runs_dir),
+            days=args.days,
+            providers=args.providers,
+            provider_model=args.model,
+            ollama_url=args.ollama_url,
+            memory_db=Path(args.memory_db).expanduser() if args.memory_db else None,
+            use_memory=not args.no_memory,
+        )
+
+        print(f"Comparison created: {comparison.comparison_dir.resolve()}")
+        print(f"Report: {comparison.report_path.resolve()}")
+        if comparison.memory_db:
+            print(f"Memory: {comparison.memory_db.resolve()}")
+        print("")
+        print("Provider runs:")
+        for index, run in enumerate(comparison.runs, start=1):
+            print(f"- {index}. {run.provider}: {run.run_dir.resolve()}")
         return 0
 
     objective = " ".join(args.objective)

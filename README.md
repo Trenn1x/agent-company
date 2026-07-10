@@ -65,6 +65,21 @@ List the default roles:
 python3 company.py roles
 ```
 
+Compare providers on the same objective:
+
+```bash
+python3 company.py compare "Build the multi-agent company operating loop" --name provider-comparison
+```
+
+By default, `compare` runs `deterministic` and `ollama`, writes both run folders
+under one comparison folder, and creates `comparison_report.md` with task,
+fallback, and review guidance. For a zero-network smoke test, compare two local
+deterministic runs:
+
+```bash
+python3 company.py compare "Build the multi-agent company operating loop" --providers deterministic deterministic --no-memory
+```
+
 Run tests:
 
 ```bash
