@@ -13,6 +13,7 @@ from company import (
     compare_provider_runs,
     create_daily_review,
     extract_json_object,
+    fallback_roles,
     render_status_report,
     render_memory_summary,
     slugify,
@@ -314,6 +315,11 @@ class CompanyEngineTests(unittest.TestCase):
         ])
         self.assertIn("CEO summary", memos[0].summary)
         self.assertIn("deterministic fallback", memos[1].summary)
+        self.assertEqual(fallback_roles(memos), [
+            "Chief Product and Market Officer",
+            "Chief Technology Officer",
+            "Chief Revenue Officer",
+        ])
         self.assertIn("Risk summary", memos[4].summary)
         self.assertIn("Ops summary", memos[5].summary)
 
@@ -372,6 +378,7 @@ class CompanyEngineTests(unittest.TestCase):
         self.assertEqual(calls_by_role["ceo"], 1)
         self.assertIn("fallback used", summaries["cto"])
         self.assertIn("CEO summary", summaries["ceo"])
+        self.assertEqual(fallback_roles(result.memos), ["Chief Technology Officer"])
 
 
 if __name__ == "__main__":

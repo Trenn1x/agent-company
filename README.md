@@ -80,6 +80,24 @@ deterministic runs:
 python3 company.py compare "Build the multi-agent company operating loop" --providers deterministic deterministic --no-memory
 ```
 
+## Catch Plan Regressions
+
+Run a fixed suite of objectives before changing the planning templates. The
+offline check fails if a role disappears or a critical (`P0`) task is dropped,
+demoted, or reassigned. It also lists changes such as revised deadlines for
+review. No model, API key, or database is needed.
+
+```bash
+scratch=$(mktemp -d)
+python3 company.py snapshot examples/regression/suite.json --output "$scratch/candidate.json"
+python3 company.py regress examples/regression/baseline.json "$scratch/candidate.json"
+```
+
+The [regression walkthrough](docs/regression.md) shows a deliberate failure,
+how to read the GitHub Actions report, and when to update a baseline.
+
+## Tests
+
 Run tests:
 
 ```bash

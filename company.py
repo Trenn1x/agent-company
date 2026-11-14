@@ -11,6 +11,7 @@ import argparse
 import json
 import re
 import sqlite3
+import tempfile
 import textwrap
 import urllib.error
 import urllib.request
@@ -68,6 +69,7 @@ class AgentMemo:
     risks: list[str]
     asks: list[str]
     tasks: list[dict[str, str]] = field(default_factory=list)
+    fallback_used: bool = False
 
 
 @dataclass
@@ -426,6 +428,7 @@ class OllamaMemoProvider(MemoProvider):
                     "Ollama role memo fallback used after validation failure "
                     f"({reason}). {memo.summary}"
                 )
+                memo.fallback_used = True
                 return memo
         raise ValueError(f"No deterministic fallback memo for role: {role_id}")
 
@@ -470,6 +473,7 @@ class OllamaMemoProvider(MemoProvider):
                         "Ollama role memo fallback used after validation failure; "
                         f"deterministic fallback used. {memo.summary}"
                     )
+                    memo.fallback_used = True
                     memo_by_role[memo.role.role_id] = memo
         return [memo_by_role[role_id] for role_id in required_roles]
 
@@ -2104,12 +2108,7 @@ def task_priority_counts(tasks: list[dict[str, str]]) -> dict[str, int]:
 
 
 def fallback_roles(memos: list[AgentMemo]) -> list[str]:
-    return [
-        memo.role.title
-        for memo in memos
-        if "fallback used" in memo.summary.lower()
-        or "deterministic fallback" in memo.summary.lower()
-    ]
+    return [memo.role.title for memo in memos if memo.fallback_used]
 
 
 def normalized_task_fingerprint(task_text: str) -> str:
@@ -2651,6 +2650,60 @@ def load_context(path: str | None) -> str:
     return Path(path).expanduser().read_text(encoding="utf-8")
 
 
+def write_regression_output(text: str, output: Path | None, inputs: list[Path]) -> None:
+    if output is None:
+        print(text, end="")
+        return
+
+    if any(output.resolve() == path.resolve() for path in inputs):
+        raise ValueError("output must be different from each input file")
+
+    # Write alongside the destination so an interrupted capture cannot truncate a baseline.
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            dir=output.parent, mode="w", encoding="utf-8", newline="\n", delete=False
+        ) as temp:
+            temp_path = Path(temp.name)
+            temp.write(text)
+        temp_path.replace(output)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
+
+def run_regression_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    from regression_snapshot import capture_suite, load_snapshot, load_suite
+
+    def expand(path: Path) -> Path:
+        try:
+            return path.expanduser()
+        except RuntimeError as error:
+            raise ValueError(f"{path}: {error}") from error
+
+    try:
+        output = expand(args.output) if args.output is not None else None
+        if args.command == "snapshot":
+            suite = expand(args.suite)
+            snapshot = capture_suite(load_suite(suite))
+            write_regression_output(json.dumps(snapshot, indent=2) + "\n", output, [suite])
+            return 0
+
+        from regression_compare import compare_snapshots, render_report
+
+        baseline = expand(args.baseline)
+        candidate = expand(args.candidate)
+        approved = load_snapshot(baseline)
+        if not approved["cases"]:
+            raise ValueError(f"{baseline}: the baseline must contain at least one scenario")
+        report = compare_snapshots(approved, load_snapshot(candidate))
+        text = json.dumps(report, indent=2) + "\n" if args.format == "json" else render_report(report)
+        write_regression_output(text, output, [baseline, candidate])
+        return 0 if report["passed"] else 1
+    except (OSError, ValueError) as error:
+        parser.exit(2, f"{parser.prog} {args.command}: {error}\n")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run a local corporate-agent company sprint.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -2713,6 +2766,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not sync comparison runs to SQLite memory.",
     )
 
+    snapshot_parser = subparsers.add_parser(
+        "snapshot", help="Capture an offline snapshot for a suite of objectives."
+    )
+    snapshot_parser.add_argument("suite", type=Path, help="Path to a JSON scenario suite.")
+    snapshot_parser.add_argument("--output", type=Path, help="Write JSON to this file instead of stdout.")
+
+    regress_parser = subparsers.add_parser(
+        "regress", help="Compare a candidate snapshot with the approved baseline."
+    )
+    regress_parser.add_argument("baseline", type=Path, help="Path to the approved JSON snapshot.")
+    regress_parser.add_argument("candidate", type=Path, help="Path to the new JSON snapshot.")
+    regress_parser.add_argument("--format", choices=("markdown", "json"), default="markdown")
+    regress_parser.add_argument("--output", type=Path, help="Write the report to this file instead of stdout.")
+
     status_parser = subparsers.add_parser("status", help="Print task status for an existing run.")
     status_parser.add_argument("run_dir", help="Path to a generated run folder.")
     status_parser.add_argument("--memory-db", help="Optional SQLite memory database path.")
@@ -2743,6 +2810,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.command in {"snapshot", "regress"}:
+        return run_regression_command(args, parser)
 
     if args.command == "roles":
         print(list_roles())
