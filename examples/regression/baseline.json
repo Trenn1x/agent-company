@@ -1,0 +1,345 @@
+{
+  "schema_version": 1,
+  "provider": "deterministic",
+  "cases": [
+    {
+      "id": "hiring-work-sample",
+      "scenario_sha256": "53187dd2d08d5eb092cc30180415d49a6e7986c9c5818180771ba719a9675bdb",
+      "roles": [
+        {
+          "id": "ceo",
+          "fallback": false
+        },
+        {
+          "id": "cfo_risk",
+          "fallback": false
+        },
+        {
+          "id": "chief_of_staff",
+          "fallback": false
+        },
+        {
+          "id": "coo",
+          "fallback": false
+        },
+        {
+          "id": "cpo",
+          "fallback": false
+        },
+        {
+          "id": "cro",
+          "fallback": false
+        },
+        {
+          "id": "cto",
+          "fallback": false
+        }
+      ],
+      "tasks": [
+        {
+          "owner": "CEO",
+          "priority": "P0",
+          "task": "Approve or edit the generated sprint success metric.",
+          "due": "Day 0",
+          "definition_of_done": "board_packet.md has one measurable success metric and no competing primary goal."
+        },
+        {
+          "owner": "CPO",
+          "priority": "P0",
+          "task": "Review and tighten product_brief.md.",
+          "due": "Day 1",
+          "definition_of_done": "ICP, pain, promise, non-goals, MVP, and acceptance criteria are specific enough to build from."
+        },
+        {
+          "owner": "CPO",
+          "priority": "P1",
+          "task": "Turn demo_script.md into a two-minute walkthrough.",
+          "due": "Day 2",
+          "definition_of_done": "The script names the before state, after state, proof moment, and next ask."
+        },
+        {
+          "owner": "CTO",
+          "priority": "P0",
+          "task": "Build or adapt the demo artifact described in product_brief.md.",
+          "due": "Day 3",
+          "definition_of_done": "There is a clickable, runnable, or inspectable demo artifact that supports the script."
+        },
+        {
+          "owner": "CTO",
+          "priority": "P1",
+          "task": "Document the smallest data/input needed from a real prospect.",
+          "due": "Day 3",
+          "definition_of_done": "technical_plan.md lists required fields, sample data, setup assumptions, and constraints."
+        },
+        {
+          "owner": "CRO",
+          "priority": "P0",
+          "task": "Replace placeholders in outreach_plan.md with 10 real targets.",
+          "due": "Day 2",
+          "definition_of_done": "Each row has company, contact path, reason to contact, message variant, and follow-up date."
+        },
+        {
+          "owner": "CRO",
+          "priority": "P1",
+          "task": "Start objection_log.md from the first responses or non-responses.",
+          "due": "Day 3",
+          "definition_of_done": "Every response can be categorized as interest, objection, referral, or no fit."
+        },
+        {
+          "owner": "CFO/Risk",
+          "priority": "P0",
+          "task": "Approve validation_thresholds.md.",
+          "due": "Day 1",
+          "definition_of_done": "Go, pivot, kill, budget, and approval thresholds are explicit and measurable."
+        },
+        {
+          "owner": "COO",
+          "priority": "P0",
+          "task": "Run the cadence in sprint_calendar.md.",
+          "due": "Day 1",
+          "definition_of_done": "Daily review, build block, outreach block, and decision checkpoint are scheduled."
+        },
+        {
+          "owner": "COO",
+          "priority": "P1",
+          "task": "Review task status at the end of each day.",
+          "due": "Daily",
+          "definition_of_done": "Tasks are marked closed, carried, or killed with one-line rationale."
+        },
+        {
+          "owner": "Chief of Staff",
+          "priority": "P0",
+          "task": "Review the generated operating packet for conflicts.",
+          "due": "Day 0",
+          "definition_of_done": "Board packet, product brief, outreach plan, thresholds, calendar, and tasks agree with each other."
+        }
+      ]
+    },
+    {
+      "id": "internal-agent-loop",
+      "scenario_sha256": "88e0f7c8f85f1a56e5e641eeae7b0d55036183b1a7a7c566ecfcbe2b9f9e3b18",
+      "roles": [
+        {
+          "id": "ceo",
+          "fallback": false
+        },
+        {
+          "id": "cfo_risk",
+          "fallback": false
+        },
+        {
+          "id": "chief_of_staff",
+          "fallback": false
+        },
+        {
+          "id": "coo",
+          "fallback": false
+        },
+        {
+          "id": "cpo",
+          "fallback": false
+        },
+        {
+          "id": "cro",
+          "fallback": false
+        },
+        {
+          "id": "cto",
+          "fallback": false
+        }
+      ],
+      "tasks": [
+        {
+          "owner": "CEO",
+          "priority": "P0",
+          "task": "Approve or edit the generated sprint success metric.",
+          "due": "Day 0",
+          "definition_of_done": "board_packet.md has one measurable success metric and no competing primary goal."
+        },
+        {
+          "owner": "CPO",
+          "priority": "P0",
+          "task": "Review and tighten product_brief.md.",
+          "due": "Day 1",
+          "definition_of_done": "ICP, pain, promise, non-goals, MVP, and acceptance criteria are specific enough to build from."
+        },
+        {
+          "owner": "CPO",
+          "priority": "P1",
+          "task": "Turn demo_script.md into a two-minute walkthrough.",
+          "due": "Day 2",
+          "definition_of_done": "The script names the before state, after state, proof moment, and next ask."
+        },
+        {
+          "owner": "CTO",
+          "priority": "P0",
+          "task": "Ship the task lifecycle and daily review commands.",
+          "due": "Day 1",
+          "definition_of_done": "`status`, `task`, and `review` commands work against an existing run folder."
+        },
+        {
+          "owner": "CTO",
+          "priority": "P1",
+          "task": "Document the deterministic v1 and future LLM provider boundary.",
+          "due": "Day 2",
+          "definition_of_done": "technical_plan.md or README explains what stays deterministic and where provider-backed agents plug in."
+        },
+        {
+          "owner": "CRO",
+          "priority": "P0",
+          "task": "Define the first internal proof loop in outreach_plan.md.",
+          "due": "Day 2",
+          "definition_of_done": "outreach_plan.md names the internal scenario, proof evidence, user promise, and follow-up decision."
+        },
+        {
+          "owner": "CRO",
+          "priority": "P1",
+          "task": "Start objection_log.md as an operator-friction log.",
+          "due": "Day 3",
+          "definition_of_done": "Every friction point is categorized as unclear value, workflow drag, missing capability, or no fit."
+        },
+        {
+          "owner": "CFO/Risk",
+          "priority": "P0",
+          "task": "Approve validation_thresholds.md.",
+          "due": "Day 1",
+          "definition_of_done": "Go, pivot, kill, budget, and approval thresholds are explicit and measurable."
+        },
+        {
+          "owner": "COO",
+          "priority": "P0",
+          "task": "Run the cadence in sprint_calendar.md.",
+          "due": "Day 1",
+          "definition_of_done": "Daily review, build block, outreach block, and decision checkpoint are scheduled."
+        },
+        {
+          "owner": "COO",
+          "priority": "P1",
+          "task": "Review task status at the end of each day.",
+          "due": "Daily",
+          "definition_of_done": "Tasks are marked closed, carried, or killed with one-line rationale."
+        },
+        {
+          "owner": "Chief of Staff",
+          "priority": "P0",
+          "task": "Review the generated operating packet for conflicts.",
+          "due": "Day 0",
+          "definition_of_done": "Board packet, product brief, outreach plan, thresholds, calendar, and tasks agree with each other."
+        }
+      ]
+    },
+    {
+      "id": "local-service-pilot",
+      "scenario_sha256": "cd37763e0f40a045b0f358bd8e7569ecfd3e41bc7946bbd99ad86ce11289eed2",
+      "roles": [
+        {
+          "id": "ceo",
+          "fallback": false
+        },
+        {
+          "id": "cfo_risk",
+          "fallback": false
+        },
+        {
+          "id": "chief_of_staff",
+          "fallback": false
+        },
+        {
+          "id": "coo",
+          "fallback": false
+        },
+        {
+          "id": "cpo",
+          "fallback": false
+        },
+        {
+          "id": "cro",
+          "fallback": false
+        },
+        {
+          "id": "cto",
+          "fallback": false
+        }
+      ],
+      "tasks": [
+        {
+          "owner": "CEO",
+          "priority": "P0",
+          "task": "Approve or edit the generated sprint success metric.",
+          "due": "Day 0",
+          "definition_of_done": "board_packet.md has one measurable success metric and no competing primary goal."
+        },
+        {
+          "owner": "CPO",
+          "priority": "P0",
+          "task": "Review and tighten product_brief.md.",
+          "due": "Day 1",
+          "definition_of_done": "ICP, pain, promise, non-goals, MVP, and acceptance criteria are specific enough to build from."
+        },
+        {
+          "owner": "CPO",
+          "priority": "P1",
+          "task": "Turn demo_script.md into a two-minute walkthrough.",
+          "due": "Day 2",
+          "definition_of_done": "The script names the before state, after state, proof moment, and next ask."
+        },
+        {
+          "owner": "CTO",
+          "priority": "P0",
+          "task": "Build or adapt the demo artifact described in product_brief.md.",
+          "due": "Day 3",
+          "definition_of_done": "There is a clickable, runnable, or inspectable demo artifact that supports the script."
+        },
+        {
+          "owner": "CTO",
+          "priority": "P1",
+          "task": "Document the smallest data/input needed from a real prospect.",
+          "due": "Day 3",
+          "definition_of_done": "technical_plan.md lists required fields, sample data, setup assumptions, and constraints."
+        },
+        {
+          "owner": "CRO",
+          "priority": "P0",
+          "task": "Replace placeholders in outreach_plan.md with 10 real targets.",
+          "due": "Day 2",
+          "definition_of_done": "Each row has company, contact path, reason to contact, message variant, and follow-up date."
+        },
+        {
+          "owner": "CRO",
+          "priority": "P1",
+          "task": "Start objection_log.md from the first responses or non-responses.",
+          "due": "Day 3",
+          "definition_of_done": "Every response can be categorized as interest, objection, referral, or no fit."
+        },
+        {
+          "owner": "CFO/Risk",
+          "priority": "P0",
+          "task": "Approve validation_thresholds.md.",
+          "due": "Day 1",
+          "definition_of_done": "Go, pivot, kill, budget, and approval thresholds are explicit and measurable."
+        },
+        {
+          "owner": "COO",
+          "priority": "P0",
+          "task": "Run the cadence in sprint_calendar.md.",
+          "due": "Day 1",
+          "definition_of_done": "Daily review, build block, outreach block, and decision checkpoint are scheduled."
+        },
+        {
+          "owner": "COO",
+          "priority": "P1",
+          "task": "Review task status at the end of each day.",
+          "due": "Daily",
+          "definition_of_done": "Tasks are marked closed, carried, or killed with one-line rationale."
+        },
+        {
+          "owner": "Chief of Staff",
+          "priority": "P0",
+          "task": "Review the generated operating packet for conflicts.",
+          "due": "Day 0",
+          "definition_of_done": "Board packet, product brief, outreach plan, thresholds, calendar, and tasks agree with each other."
+        }
+      ]
+    }
+  ]
+}

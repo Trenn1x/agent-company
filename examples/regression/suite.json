@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "scenarios": [
+    {
+      "id": "hiring-work-sample",
+      "objective": "Build a job application work sample for an operations engineer role.",
+      "context": "Use a synthetic spreadsheet reconciliation exercise and write a handoff for a reviewer."
+    },
+    {
+      "id": "internal-agent-loop",
+      "objective": "Design an agent workflow to turn weekly intake notes into owned follow-up tasks.",
+      "context": "A reviewer approves the sprint goal and each follow-up task. Use fictional intake notes.",
+      "days": 5
+    },
+    {
+      "id": "local-service-pilot",
+      "objective": "Validate a lead follow-up MVP for Charleston plumbing companies.",
+      "context": "Demonstrate missed-call recovery and quote follow-up using a fictional service desk."
+    }
+  ]
+}
